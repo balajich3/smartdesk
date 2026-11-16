@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: ai-triage-service
+
+server:
+  port: 8082
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+groq:
+  api:
+    url: https://api.groq.com/openai/v1
+    key: ${GROQ_API_KEY}
+    model: openai/gpt-oss-120b
