@@ -1,0 +1,193 @@
+services:
+
+  # ==========================================
+  # POSTGRESQL DATABASE
+  # ==========================================
+  postgres:
+    image: postgres:17-alpine
+    container_name: smartdesk-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      POSTGRES_DB: postgres
+
+    ports:
+      - "5433:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+
+  # ==========================================
+  # EUREKA SERVER
+  # ==========================================
+  eureka-server:
+    build:
+      context: ./eureka-server
+      dockerfile: Dockerfile
+
+    image: smartdesk-eureka:1.0
+    container_name: smartdesk-eureka
+    restart: unless-stopped
+
+    ports:
+      - "8761:8761"
+
+
+  # ==========================================
+  # AI TRIAGE SERVICE
+  # ==========================================
+  ai-triage-service:
+    build:
+      context: ./ai-triage-service
+      dockerfile: Dockerfile
+
+    image: smartdesk-ai-triage:1.0
+    container_name: smartdesk-ai-triage
+    restart: unless-stopped
+
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      GROQ_API_KEY: ${GROQ_API_KEY:?Set GROQ_API_KEY in .env}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-120b}
+
+    depends_on:
+      eureka-server:
+        condition: service_started
+
+
+  # ==========================================
+  # TICKET SERVICE
+  # ==========================================
+  ticket-service:
+    build:
+      context: ./ticket-service
+      dockerfile: Dockerfile
+
+    image: smartdesk-ticket:1.0
+    container_name: smartdesk-ticket
+    restart: unless-stopped
+
+    environment:
+      SERVER_PORT: 8081
+
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/smartdesk_ticket_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      JWT_EXPIRATION: 86400000
+
+      ADMIN_NAME: ${ADMIN_NAME:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+
+
+  # ==========================================
+  # NOTIFICATION SERVICE
+  # ==========================================
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+
+    image: smartdesk-notification:1.0
+    container_name: smartdesk-notification
+    restart: unless-stopped
+
+    environment:
+      SERVER_PORT: 8083
+
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/smartdesk_notification_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+
+      SMTP_HOST: ${SMTP_HOST:-localhost}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+
+
+  # ==========================================
+  # API GATEWAY
+  # ==========================================
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+
+    image: smartdesk-gateway:1.0
+    container_name: smartdesk-gateway
+    restart: unless-stopped
+
+    ports:
+      - "8080:8080"
+
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      TICKET_SERVICE_URL: http://ticket-service:8081
+      NOTIFICATION_SERVICE_URL: http://notification-service:8083
+
+    depends_on:
+      eureka-server:
+        condition: service_started
+      ticket-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+
+
+  # ==========================================
+  # REACT FRONTEND
+  # ==========================================
+  smartdesk-frontend:
+    build:
+      context: ./smartdesk-frontend
+      dockerfile: Dockerfile
+
+    image: smartdesk-frontend:1.0
+    container_name: smartdesk-frontend
+    restart: unless-stopped
+
+    ports:
+      - "5174:80"
+
+    depends_on:
+      api-gateway:
+        condition: service_started
+      notification-service:
+        condition: service_started
+
+
+# ==========================================
+# PERSISTENT VOLUMES
+# ==========================================
+volumes:
+  postgres_data:

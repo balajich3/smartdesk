@@ -2,6 +2,15 @@ spring:
   application:
     name: ai-triage-service
 
+  ai:
+    openai:
+      api-key: ${GROQ_API_KEY}
+      base-url: https://api.groq.com/openai/v1
+      chat:
+        model: ${GROQ_MODEL:openai/gpt-oss-120b}
+        temperature: 0.2
+        max-tokens: 500
+
 server:
   port: 8082
 
@@ -10,8 +19,42 @@ eureka:
     service-url:
       defaultZone: http://localhost:8761/eureka/
 
-groq:
-  api:
-    url: https://api.groq.com/openai/v1
-    key: ${GROQ_API_KEY}
-    model: openai/gpt-oss-120b
+resilience4j:
+  circuitbreaker:
+    instances:
+      groq:
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 20s
+        permittedNumberOfCallsInHalfOpenState: 2
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+
+  retry:
+    instances:
+      groq:
+        maxAttempts: 2
+        waitDuration: 500ms
+
+  ratelimiter:
+    instances:
+      groq:
+        limitForPeriod: 5
+        limitRefreshPeriod: 1s
+        timeoutDuration: 0
+
+  bulkhead:
+    instances:
+      groq:
+        maxConcurrentCalls: 5
+        maxWaitDuration: 0
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,circuitbreakers,circuitbreakerevents,retries,ratelimiters,bulkheads
+  endpoint:
+    health:
+      show-details: always

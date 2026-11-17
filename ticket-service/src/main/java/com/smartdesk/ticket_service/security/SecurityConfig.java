@@ -32,7 +32,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                "/api/auth/register",
+                                "/api/auth/register", // these endpoints are publicly accessible
                                 "/api/auth/login",
                                 "/api/auth/login/password",
                                 "/api/auth/login/otp",
@@ -43,6 +43,6 @@ public class SecurityConfig {
                 );
 
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-        return http.build();
+        return http.build();  // config jwt authentication
     }
 }

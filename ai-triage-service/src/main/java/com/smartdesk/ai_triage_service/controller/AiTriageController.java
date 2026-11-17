@@ -20,11 +20,8 @@ public class AiTriageController {
     }
 
     @PostMapping
-    public ResponseEntity<AiTriageResponse> analyzeTicket(
-            @Valid @RequestBody AiTriageRequest request
-    ) {
-        AiTriageResponse response =
-                aiTriageService.analyzeTicket(request);
+    public ResponseEntity<AiTriageResponse> analyzeTicket(@Valid @RequestBody AiTriageRequest request) {
+        AiTriageResponse response = aiTriageService.analyzeTicket(request);
 
         return ResponseEntity.ok(response);
     }

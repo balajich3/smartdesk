@@ -1,0 +1,42 @@
+# Java
+*.class
+*.jar
+*.war
+
+# Maven
+**/target/
+
+# IntelliJ
+.idea/
+*.iml
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# VS Code
+.vscode/
+
+# React / Node
+**/node_modules/
+**/dist/
+**/build/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.swp

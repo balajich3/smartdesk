@@ -1,0 +1,3 @@
+CREATE DATABASE smartdesk_ticket_db;
+
+CREATE DATABASE smartdesk_notification_db;
